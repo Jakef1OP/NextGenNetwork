@@ -1,0 +1,88 @@
+GPS NODE: NEO-6M
+Wiring:
+		NEO-6M GPS Module:		Wiring to Arduino UNO:
+		VCC						5V
+		RX						TX pin defined in the software serial
+		TX						RX pin defined in the software serial
+		GND						GND
+		
+
+Outputs raw data in NMEA Sentences like this: " $GPGGA,110617.00,41XX.XXXXX,N,00831.54761,W,1,05,2.68,129.0,M,50.1,M,,*42 "
+
+Each piece of data in this sentence is separated by a comma. This is what each segment is for:
+
+110617 – represents the time at which the fix location was taken, 11:06:17 UTC
+41XX.XXXXX,N – latitude 41 deg XX.XXXXX’ N
+00831.54761,W – Longitude 008 deg 31.54761′ W
+1 – fix quality (0 = invalid; 1= GPS fix; 2 = DGPS fix; 3 = PPS fix; 4 = Real Time Kinematic; 5 = Float RTK; 6 = estimated (dead reckoning); 7 = Manual input mode; 8 = Simulation mode)
+05 – number of satellites being tracked
+2.68 – Horizontal dilution of position
+129.0, M – Altitude, in meters above the sea level
+50.1, M – Height of geoid (mean sea level) above WGS84 ellipsoid
+empty field – time in seconds since last DGPS update
+empty field – DGPS station ID number
+42 – the checksum data, always begins with the other NMEA sentences to provide additional information:
+
+$GPGSA – GPS DOP and active satellites
+$GPGSV – Detailed GPS satellite information
+$GPGLL – Geographic Latitude and Longitude
+$GPRMC – Essential GPS pvt (position, velocity, time) data
+$GPVTG – Velocity made good
+
+
+There is a library called TinyGPS++ that makes managing this information much easier. This library can be taken from https://github.com/mikalhart/TinyGPSPlus/archive/master.zip
+TinyGPS++ needs to be included like this:
+	#include <TinyGPS++.h>
+	#include <SoftwareSerial.h>
+
+This library can be used too split our NMEA sentence into useful information without having to do the work ourselves. This is how it's done:
+
+define pins:
+	static const int RXPin = 4, TXPin = 3;
+	static const uint32_t GPSBaud = 9600;
+
+create tinygps++ object:
+	TinyGPSPlus gps;
+	
+start serial:
+	SoftwareSerial ss(RXPin, TXPin);
+
+void setup:
+	void setup() 
+	{
+	  Serial.begin(9600);
+	  ss.begin(GPSBaud);
+	}
+	
+use the encode function to constantly send GPS data to the module:
+	while (ss.available() > 0){
+	gps.encode(ss.read());
+	
+Then query the gps object and check if any of the fields have changed:
+	if (gps.location.isUpdated())
+	{
+	  Serial.print("Latitude="); Serial.print(gps.location.lat(), 6);
+	  Serial.print("Longitude="); Serial.println(gps.location.lng(), 6);
+	}
+	
+Getting the latitude and longitude from the gps node is has simple as using gps.location.lat(), and gps.location.lng(), respectively.
+TinyGPS++ can also be used to find information such as:
+	date
+	time
+	speed
+	course
+	altitude
+	satellites
+	hdop
+	
+Documentation for the TinyGPS++ library can be found here:
+	http://arduiniana.org/libraries/tinygpsplus/
+
+Some NEO-6M guides and information can be found here:
+	https://randomnerdtutorials.com/guide-to-neo-6m-gps-module-with-arduino/
+	
+NEO-6M physical setup:
+	https://i1.wp.com/randomnerdtutorials.com/wp-content/uploads/2018/01/NEO_6M_Arduino.png?resize=1024%2C551&ssl=1
+	
+SoftwareSerial library:
+	https://www.arduino.cc/en/Reference/SoftwareSerial
